@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, user-scalable=no" />
+<title>15パズル</title>
+<link rel="stylesheet" href="css/common.css" />
+<script src="js/enchant.min.js"></script>
+<script>
+	enchant();
+	var BOARD_WIDTH = 547;
+	var BOARD_HEIGHT = 547;
+	var PIECE_HEIGHT = 128;
+	var PIECE_WIDTH = 128;
+	var BOARD_START_X = 28;
+	var BOARD_START_Y = 28;
+	var PIECE_MOVE_VALUE_X = 122;
+	var PIECE_MOVE_VALUE_Y = 122;
+	var DEFAULT_FONT = "";
+	var imageSets = [
+					"images/board.png",
+					"images/piece1.png",
+					"images/piece2.png",
+					"images/piece3.png",
+					"images/piece4.png",
+					"images/piece5.png",
+					"images/piece6.png",
+					"images/piece7.png",
+					"images/piece8.png",
+					"images/piece9.png",
+					"images/piece10.png",
+					"images/piece11.png",
+					"images/piece12.png",
+					"images/piece13.png",
+					"images/piece14.png",
+					"images/piece15.png"
+				];
+	var core = null;
+	var rootScene = null;
+	var pieces = new Array(15);
+	var spacePosition = 16;				// 空いているポジション
+	var pieceMoving = false;			// ピースが移動中か判別
+	var gameFinishFlag = true;			// ゲーム終了フラグ
+	var startTime = null;				// スタートタイム
+	var movingCount = 0;				// 動かしたカウント
+	window.onload = function() {
+		core = new Core(screen.width, screen.height);
+		core.preload(imageSets);
+		core.onload = function() {
+			// ルートシーン
+			rootScene = core.rootScene;
+			
+			// ボード
+			var bg = new Sprite(BOARD_WIDTH, BOARD_HEIGHT);
+			bg.image = core.assets["images/board.png"];
+			rootScene.addChild(bg);
+			
+			// タイムラベル
+			var timeLabel = new Label("タイム：");
+			timeLabel.color = "blue";
+			timeLabel.font = "48px 'ＭＳ Ｐゴシック', 'MS PGothic', sans-serif";
+			timeLabel.moveTo(580, 20);
+			rootScene.addChild(timeLabel);
+			
+			// 手数ラベル
+			var movingCountLabel = new Label("手数：");
+			movingCountLabel.color = "blue";
+			movingCountLabel.font = "48px 'ＭＳ Ｐゴシック', 'MS PGothic', sans-serif";
+			movingCountLabel.moveTo(580, 120);
+			rootScene.addChild(movingCountLabel);
+			
+			// ゲームスタート
+			startGame();
+			
+			// ルートシーン更新時の処理
+			rootScene.addEventListener("enterframe", function() {
+				// タイム
+				if (startTime != null) {
+					nowTime = (new Date()).getTime();
+					time = Math.floor((nowTime - startTime) / 1000);
+					timeLabel.text = "タイム：" + time;
+				}
+				
+				// 手数カウント
+				movingCountLabel.text = "手数：" + movingCount;
+				
+				// クリア判定
+				if (gameFinishFlag == false) {
+					if (pieceMoving == false) {
+						if (isClear()) {
+							if (confirm("クリア！。もう一度やりますか？") == true) {
+								deletePieces();
+								startGame();
+							} else {
+								gameFinishFlag = true;
+							}
+						}
+					}
+				}
+			});
+		};
+		core.start();
+	};
+	
+	// ピースクラス
+	var Piece = Class.create(Sprite, {
+		initialize: function(image, number, position) {
+			Sprite.call(this, PIECE_HEIGHT, PIECE_WIDTH);
+			this.number = number;
+			this.position = position;
+			this.image = core.assets[image];
+			this.start_x = 0;
+			this.start_y = 0;
+		},
+		ontouchstart: function(e) {
+			this.start_x = e.x;
+			this.start_y = e.y;
+		},
+		ontouchend: function(e) {
+			// 他のピースが移動中なら終了
+			if (pieceMoving == true) {
+				return;
+			}
+			
+			// 距離取得
+			var up = Math.floor(this.start_y - e.y);
+			var down = Math.floor(e.y - this.start_y);
+			var left = Math.floor(this.start_x - e.x);
+			var right = Math.floor(e.x - this.start_x);
+			
+			// 最大値取得
+			var max = Math.max(Math.max(Math.max(up, down), left), right);
+			
+			// 移動
+			switch (max) {
+			case up:
+				// 上
+				if (this.position - 4 != spacePosition) {
+					break;
+				}
+				pieceMoving = true;
+				this.tl.moveBy(0, -PIECE_MOVE_VALUE_Y, 5);
+				this.tl.delay(5).then(function() {pieceMoving = false;});
+				spacePosition = this.position;
+				this.position = this.position - 4;
+				movingCount++;
+				break;
+			case down:
+				// 下
+				if (this.position + 4 != spacePosition) {
+					break;
+				}
+				pieceMoving = true;
+				this.tl.moveBy(0, PIECE_MOVE_VALUE_Y, 5);
+				this.tl.delay(5).then(function() {pieceMoving = false;});
+				spacePosition = this.position;
+				this.position = this.position + 4;
+				movingCount++;
+				break;
+			case left:
+				// 左
+				if (this.position - 1 != spacePosition) {
+					break;
+				}
+				pieceMoving = true;
+				this.tl.moveBy(-PIECE_MOVE_VALUE_X, 0, 5);
+				this.tl.delay(5).then(function() {pieceMoving = false;});
+				spacePosition = this.position;
+				this.position = this.position - 1;
+				movingCount++;
+				break;
+			case right:
+				// 右
+				if (this.position + 1 != spacePosition) {
+					break;
+				}
+				pieceMoving = true;
+				this.tl.moveBy(PIECE_MOVE_VALUE_X, 0, 5);
+				this.tl.delay(5).then(function() {pieceMoving = false;});
+				spacePosition = this.position;
+				this.position = this.position + 1;
+				movingCount++;
+				break;
+			default:
+			}
+		},
+		remove: function() {
+			rootScene.removeChild(this);
+			delete this;
+		},
+		isCorrectPosition: function() {
+			return this.position == this.number;
+		}
+	});
+	
+	// ゲームスタート
+	function startGame() {
+		// 初期化
+		gameFinishFlag = false;
+		startTime = (new Date()).getTime();
+		movingCount = 0;
+		
+		// ナンバーをシャッフルしてセット
+		var numbers = new Array(15);
+		for (var i = 0; i < numbers.length; i++) {
+			numbers[i] = i + 1;
+		}
+		
+		// 不可能問題の処理
+		do {
+			shuffleArray(numbers);
+		} while (! isPossiblePuzzle(numbers));
+		
+		// スペース位置の設定
+		spacePosition = 16;
+		
+		// ピースのセット
+		var pieceCount = 0;
+		for (var i = 0; i < 4; i++) {
+			for (var j = 0; j < 4; j++) {
+				var moveX = BOARD_START_X + j * PIECE_MOVE_VALUE_X;
+				var moveY = BOARD_START_Y + i * PIECE_MOVE_VALUE_Y;
+				pieces[pieceCount] = new Piece("images/piece" + numbers[pieceCount] + ".png", numbers[pieceCount], pieceCount + 1);
+				pieces[pieceCount].moveTo(moveX, moveY);
+				rootScene.addChild(pieces[pieceCount]);
+				pieceCount++;
+				if (pieceCount >= 15) {
+					break;
+				}
+			}
+		}
+	}
+
+	// ピースオブジェクトを削除（再ゲーム時）
+	function deletePieces() {
+		for (var i = 0; i < pieces.length; i++) {
+			pieces[i].remove();
+		}
+	}
+	
+	// クリア判定
+	function isClear() {
+		for (var i = 0; i < pieces.length; i++) {
+			if (! pieces[i].isCorrectPosition()) {
+				return false;
+			}
+		}
+		return true;
+	}
+	
+	// 配列のシャッフル
+	function shuffleArray(ary) {
+		for (var i = 0; i < ary.length; i++) {
+			var j = Math.floor(Math.random() * ary.length);
+			var tmp = ary[i];
+			ary[i] = ary[j];
+			ary[j] = tmp;
+		}
+	}
+	
+	// 解答可能問題か判別
+	function isPossiblePuzzle(ary) {
+		var aryTmp = new Array(ary[0], ary[1], ary[2], ary[3],
+							ary[4], ary[5], ary[6], ary[7],
+							ary[8], ary[9], ary[10], ary[11],
+							ary[12], ary[13], ary[14], ary[15]
+							);
+		var tmp = 0;
+		var changingCount = 0;
+		
+		// 数値交換回数を求める
+		for (var i = 0; i < aryTmp.length - 1; i++) {
+			for (var j = i + 1; j < aryTmp.length; j++) {
+				if (i + 1 == aryTmp[j]) {
+					tmp = aryTmp[i];
+					aryTmp[i] = aryTmp[j];
+					aryTmp[j] = tmp;
+					changingCount++;
+					break;
+				}
+			}
+		}
+		
+		// 交換回数が偶数なら解ける、奇数なら解けない
+		if (changingCount % 2 == 0) {
+			return true;
+		} else {
+			return false;
+		}
+	}
+</script>
+</head>
+<body>
+</body>
+</html>
